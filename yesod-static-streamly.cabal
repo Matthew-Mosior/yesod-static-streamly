@@ -20,10 +20,10 @@ name:               yesod-static-streamly
 -- PVP summary:     +-+------- breaking API changes
 --                  | | +----- non-breaking API additions
 --                  | | | +--- code changes with no API change
-version:            0.1.0.0
+version:            0.1.1.1
 
 -- A short (one-line) description of the package.
-synopsis:           A streamly-based alternative to yesod-static functionality.
+synopsis:           A streamly-based library providing performance-focused alternatives for functionality found in yesod-static.
 
 -- A longer description of the package.
 description:        API docs and the README are available at https://github.com/Matthew-Mosior/yesod-static-streamly 
@@ -61,7 +61,7 @@ library
     import:           warnings
 
     -- Modules exported by the library.
-    exposed-modules:  Yesod.Static.Streamly
+    exposed-modules:  Yesod.Default.Util.Streamly
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -70,13 +70,13 @@ library
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
-    build-depends:    base ^>=4.16.4.0,
+    build-depends:    base ^>=4.17.1.0,
                       bytestring >= 0.11.4 && < 0.12,
-                      directory >= 1.3.6 && < 1.4,
-                      streamly-core == 0.1.0,
-                      streamly-bytestring == 0.2.0,
-                      text >= 1.2.5 && < 1.3,
-                      yesod-core >= 1.6.24 && < 1.7 
+                      directory >= 1.3.7 && < 1.4,
+                      streamly-bytestring >= 0.2.0 && < 0.3,
+                      streamly-core >= 0.1.0 && < 0.2,
+                      text >= 2.0.2 && < 2.1,
+                      yesod-core >= 1.6.24 && < 1.7
 
     -- Directories containing source files.
     hs-source-dirs:   src
@@ -111,5 +111,5 @@ test-suite yesod-static-streamly-test
 
     -- Test dependencies.
     build-depends:
-        base ^>=4.16.4.0,
+        base ^>=4.17.1.0,
         yesod-static-streamly

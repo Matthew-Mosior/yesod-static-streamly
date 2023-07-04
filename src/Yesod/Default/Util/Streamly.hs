@@ -2,19 +2,19 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 -- |
--- Module      :  Yesod.Static.Streamly
+-- Module      :  Yesod.Default.Util.Streamly
 -- Copyright   :  (c) Matthew Mosior 2023
 -- License     :  BSD-style
 -- Maintainer  :  mattm.github@gmail.com
 -- Portability :  portable
 --
--- = Streamly-based static file functions.
+-- = Streamly-based alternative functionality for Yesod.Default.Util.
 --
--- This library attempts to utilize [Streamly](https://hackage.haskell.org/package/streamly-core)'s superb performance characteristics to replace some of [Yesod](https://hackage.haskell.org/package/yesod) functionality with streamly-based functionality.
+-- This library utilizes [Streamly](https://hackage.haskell.org/package/streamly-core)'s superb performance characteristics to replace some of [Yesod](https://hackage.haskell.org/package/yesod)'s functionality with streamly-based functionality.
 
-module Yesod.Static.Streamly ( -- * Yesod.Default.Util Replacement function
-                               addStaticContentExternalStreamly 
-                             ) where
+module Yesod.Default.Util.Streamly ( -- * Yesod.Default.Util Replacement function
+                                     addStaticContentExternalStreamly 
+                                   ) where
 
 import Control.Monad (unless)
 import Data.ByteString.Lazy as L (ByteString)

@@ -20,13 +20,19 @@ name:               yesod-static-streamly
 -- PVP summary:     +-+------- breaking API changes
 --                  | | +----- non-breaking API additions
 --                  | | | +--- code changes with no API change
-version:            0.1.1.1
+version:            0.1.3.1
 
 -- A short (one-line) description of the package.
 synopsis:           A streamly-based library providing performance-focused alternatives for functionality found in yesod-static.
 
+-- Issue tracker.
+bug-reports:        https://github.com/Matthew-Mosior/yesod-static-streamly/issues
+
 -- A longer description of the package.
 description:        API docs and the README are available at https://github.com/Matthew-Mosior/yesod-static-streamly 
+
+-- Package homepage.
+homepage:           https://github.com/Matthew-Mosior/yesod-static-streamly
 
 -- The license under which the package is released.
 license:            BSD-3-Clause
@@ -61,7 +67,9 @@ library
     import:           warnings
 
     -- Modules exported by the library.
-    exposed-modules:  Yesod.Default.Util.Streamly
+    exposed-modules:  Yesod.Default.Util.Streamly,
+                      Yesod.Static.Streamly.Internal,
+                      Yesod.Static.Streamly
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -71,12 +79,22 @@ library
 
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.17.1.0,
+                      base64-bytestring >= 1.2.1 && < 1.3,
+                      byteable >= 0.1.1 && < 0.2,
                       bytestring >= 0.11.4 && < 0.12,
+                      containers >= 0.6.7 && < 0.7,
+                      cryptohash >= 0.11.9 && < 0.12,
+                      cryptonite >= 0.30 && < 0.31,
                       directory >= 1.3.7 && < 1.4,
+                      memory >= 0.18.0 && < 0.19,
+                      mtl >= 2.2.2 && < 2.3,
                       streamly-bytestring >= 0.2.0 && < 0.3,
                       streamly-core >= 0.1.0 && < 0.2,
+                      template-haskell,
                       text >= 2.0.2 && < 2.1,
-                      yesod-core >= 1.6.24 && < 1.7
+                      wai-app-static >= 3.1.7 && < 3.2,
+                      yesod-core >= 1.6.24 && < 1.7,
+                      yesod-static >= 1.6.1 && < 1.7
 
     -- Directories containing source files.
     hs-source-dirs:   src
@@ -85,7 +103,7 @@ library
     default-language: Haskell2010
 
     -- Set highest (reasonable) optimization level to compile with.
-    ghc-options: -O2 -fprof-auto
+    --ghc-options: -O2 -fprof-auto
 
 test-suite yesod-static-streamly-test
     -- Import common warning flags.

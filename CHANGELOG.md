@@ -17,3 +17,15 @@
 
 * Third version.
 * First non-candidate version (version bump).
+
+## 0.1.2.1 -- 2023-07-07
+
+* Fourth version.
+* Added staticStreamly function in Yesod.Static.Streamly.
+* Added supporting functionality for staticStreamly in Yesod.Static.Streamly.Internal.
+
+## 0.1.3.1 -- 2023-07-07
+
+* Fifth version.
+* Added staticFilesStreamly function to Yesod.Static.Streamly.
+* Added supporting functionality for staticFilesStreamly in Yesod.Static.Streamly.Internal.

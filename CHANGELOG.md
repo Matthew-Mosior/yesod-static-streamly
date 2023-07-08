@@ -33,3 +33,7 @@
 ## 0.1.3.3 -- 2023-07-07
 
 * Rework of the sinkHashStreamly and hashFileStreamly functions in Yesod.Static.Streamly.Internal.
+
+## 0.1.3.4 -- 2023-07-08
+
+* Modified hashFileStreamly to set unlimited buffer, threading and eager scheduling for parEval function.

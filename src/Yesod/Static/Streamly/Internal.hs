@@ -48,31 +48,27 @@ module Yesod.Static.Streamly.Internal ( -- * Yesod.Static Replacement functions
                                         sinkHashStreamly
                                       ) where
 
+import Control.Monad.Trans.Control (MonadBaseControl)
 import Control.Monad.State.Lazy
 import "cryptonite" Crypto.Hash (hash,Digest,MD5)
 import "cryptonite" Crypto.Hash.IO (HashAlgorithm)
-import "cryptohash" Crypto.Hash (hashInit,hashUpdate)
-import "cryptohash" Crypto.Hash.Types
-import Data.Byteable
 import qualified Data.ByteArray as ByteArray
 import Data.ByteString as B (ByteString)
 import qualified Data.ByteString.Base64
 import qualified Data.ByteString.Char8 as S8
-import Data.ByteString.Lazy as L (fromStrict)
-import Data.ByteString.Lazy.Internal as IL (ByteString(..))
 import Data.Char (isLower,isDigit)
 import Data.List (foldl',intercalate,sort)
 import qualified Data.Map as M
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax as TH
 import qualified Streamly.Data.Stream as S
+import Streamly.Data.Stream.Prelude as StreamlyPrelude
 import qualified Streamly.Data.Fold as Fold
 import Streamly.External.ByteString as StreamlyByteString
-import Streamly.Internal.Data.Stream.StreamD.Type (Step(..))
-import Streamly.Internal.Data.Unfold.Type as StreamU (Unfold(..))
 import Streamly.FileSystem.Handle as StreamlyFile (chunkReader)
+import Streamly.Internal.Data.Stream.MkType (MonadThrow)
 import System.Directory (doesDirectoryExist,doesFileExist,getDirectoryContents)
-import System.IO (openFile, IOMode(ReadMode))
+import System.IO (openFile,IOMode(ReadMode))
 import WaiAppStatic.Storage.Filesystem (ETagLookup)
 import Yesod.Static
 
@@ -108,7 +104,7 @@ mkStaticFilesListStreamly' :: FilePath -- ^ static directory
                            -> Bool     -- ^ append checksum query parameter
                            -> Q [Dec]
 mkStaticFilesListStreamly' fp fs makeHash = do
-  concat `fmap` mapM mkRoute fs
+  concat `fmap` Control.Monad.State.Lazy.mapM mkRoute fs
     where
       replace' c
           | 'A' <= c && c <= 'Z' = c
@@ -154,7 +150,7 @@ mkHashMapStreamly dir = do
     where
       hashAlist :: [[String]]
                 -> IO [(FilePath,S8.ByteString)]
-      hashAlist fs = mapM hashPair fs
+      hashAlist fs = Control.Monad.State.Lazy.mapM hashPair fs
           where
             hashPair :: [String]
                      -> IO (FilePath,S8.ByteString)
@@ -182,20 +178,20 @@ getFileListPiecesStreamly = flip evalStateT M.empty . flip go id
        -> ([String] -> [String])
        -> StateT (M.Map String String) IO [[String]]
     go fp front = do
-      allContents <- liftIO $ (sort . filter notHiddenStreamly) `fmap` getDirectoryContents fp
+      allContents <- liftIO $ (sort . Prelude.filter notHiddenStreamly) `fmap` getDirectoryContents fp
       let fullPath :: String -> String
           fullPath f = fp ++ '/' : f
-      files <- liftIO $ filterM (doesFileExist . fullPath) allContents
+      files <- liftIO $ Control.Monad.State.Lazy.filterM (doesFileExist . fullPath) allContents
       let files' = map (front . return) files
-      files'' <- mapM dedupe files'
-      dirs <- liftIO $ filterM (doesDirectoryExist . fullPath) allContents
-      dirs' <- mapM (\f -> go (fullPath f) (front . (:) f)) dirs
+      files'' <- Control.Monad.State.Lazy.mapM dedupe files'
+      dirs <- liftIO $ Control.Monad.State.Lazy.filterM (doesDirectoryExist . fullPath) allContents
+      dirs' <- Control.Monad.State.Lazy.mapM (\f -> go (fullPath f) (front . (:) f)) dirs
       return $ concat $ files'' : dirs'
     
     -- Reuse data buffers for identical strings
     dedupe :: [String]
            -> StateT (M.Map String String) IO [String]
-    dedupe = mapM dedupe'
+    dedupe = Control.Monad.State.Lazy.mapM dedupe'
 
     dedupe' :: String
             -> StateT (M.Map String String) IO String
@@ -228,7 +224,7 @@ base64md5FileStreamly = fmap (base64Streamly . encode) . hashFileStreamly
 base64Streamly :: B.ByteString
                -> String
 base64Streamly = map tr
-       . take 8
+       . Prelude.take 8
        . S8.unpack
        . Data.ByteString.Base64.encode
   where
@@ -239,32 +235,28 @@ base64Streamly = map tr
 -- | A more performant replacement of
 -- [hashFile](https://hackage.haskell.org/package/cryptohash-conduit-0.1.1/docs/src/Crypto-Hash-Conduit.html#hashFile)
 -- found in [Crypto.Hash.Conduit](https://hackage.haskell.org/package/cryptohash-conduit-0.1.1/docs/Crypto-Hash-Conduit.html).
-hashFileStreamly :: (MonadIO m,Crypto.Hash.IO.HashAlgorithm hash)
+hashFileStreamly :: ( MonadBaseControl IO m
+                    , MonadThrow m
+                    , MonadIO m
+                    ,Crypto.Hash.IO.HashAlgorithm hash
+                    )
                  => FilePath
                  -> m (Crypto.Hash.Digest hash)
 hashFileStreamly fp = do
-  handle <- liftIO $ openFile fp ReadMode
-  let lazyfile = S.unfold StreamlyFile.chunkReader handle
-  lazyfilebs <-  S.fold (Fold.foldl' (<>) mempty) $
-                   fmap StreamlyByteString.fromArray lazyfile
-  sinkHashStreamly lazyfilebs
-
+  shandle <- liftIO $ openFile fp ReadMode
+  let lazyfile = S.unfold StreamlyFile.chunkReader shandle
+  let lazyfilef = StreamlyPrelude.parEval id
+                                          (fmap StreamlyByteString.fromArray lazyfile)
+  lazyfileff <- S.fold (Fold.foldl' (<>) mempty) lazyfilef
+  sinkHashStreamly lazyfileff
+  
 
 -- | A more performant replacement of
 -- [sinkHash](https://hackage.haskell.org/package/cryptohash-conduit-0.1.1/docs/src/Crypto-Hash-Conduit.html#sinkHash)
 -- found in [Crypto.Hash.Conduit](https://hackage.haskell.org/package/cryptohash-conduit-0.1.1/docs/Crypto-Hash-Conduit.html).
-sinkHashStreamly :: (Monad m,Crypto.Hash.IO.HashAlgorithm hash)
+sinkHashStreamly :: ( Monad m
+                    , Crypto.Hash.IO.HashAlgorithm hash
+                    )
                  => B.ByteString
                  -> m (Crypto.Hash.Digest hash)
-sinkHashStreamly bscontent = do
-  let lazybsf   = S.unfold (Unfold step seed) blcontent
-  let lazybsff  = fmap (\x -> StreamlyByteString.toArray $ toBytes x) lazybsf
-  lazybsfff     <- S.fold (Fold.foldl' (<>) mempty) $
-                     fmap StreamlyByteString.fromArray lazybsff
-  return $ hash lazybsfff
-    where
-      blcontent          = L.fromStrict bscontent
-      ctx                = hashInit :: Context MD5
-      seed               = return
-      step (Chunk bs bl) = return $ Yield (hashUpdate ctx bs) bl
-      step Empty         = return Stop 
+sinkHashStreamly bscontent = return $ hash bscontent

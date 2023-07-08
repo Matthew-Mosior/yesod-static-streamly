@@ -66,6 +66,7 @@ import Streamly.Data.Stream.Prelude as StreamlyPrelude
 import qualified Streamly.Data.Fold as Fold
 import Streamly.External.ByteString as StreamlyByteString
 import Streamly.FileSystem.Handle as StreamlyFile (chunkReader)
+import Streamly.Internal.Data.Stream.Concurrent.Channel (defaultConfig)
 import Streamly.Internal.Data.Stream.MkType (MonadThrow)
 import System.Directory (doesDirectoryExist,doesFileExist,getDirectoryContents)
 import System.IO (openFile,IOMode(ReadMode))
@@ -244,8 +245,11 @@ hashFileStreamly :: ( MonadBaseControl IO m
                  -> m (Crypto.Hash.Digest hash)
 hashFileStreamly fp = do
   shandle <- liftIO $ openFile fp ReadMode
-  let lazyfile = S.unfold StreamlyFile.chunkReader shandle
-  let lazyfilef = StreamlyPrelude.parEval id
+  let lazyfile  = S.unfold StreamlyFile.chunkReader shandle
+  let parconfig = do let parconfigmaxthreads              = maxThreads (-1) defaultConfig
+                     let parconfigmaxbufferandmaxthreads  = maxBuffer  (-1) parconfigmaxthreads
+                     eager True parconfigmaxbufferandmaxthreads
+  let lazyfilef = StreamlyPrelude.parEval (const . id $ parconfig)
                                           (fmap StreamlyByteString.fromArray lazyfile)
   lazyfileff <- S.fold (Fold.foldl' (<>) mempty) lazyfilef
   sinkHashStreamly lazyfileff

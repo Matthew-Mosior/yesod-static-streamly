@@ -1,9 +1,13 @@
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE OverloadedLists   #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PackageImports    #-}
-{-# LANGUAGE TemplateHaskell   #-}
-{-# Language QuasiQuotes       #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedLists       #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE PackageImports        #-}
+{-# LANGUAGE RecordWildCards       #-}
+{-# LANGUAGE TemplateHaskell       #-}
+{-# LANGUAGE TypeFamilies          #-}
+{-# Language QuasiQuotes           #-}
 
 -- |
 -- Module      :  Yesod.Static.Streamly.Internal
@@ -59,15 +63,17 @@ import qualified Data.ByteString.Char8 as S8
 import Data.Char (isLower,isDigit)
 import Data.List (foldl',intercalate,sort)
 import qualified Data.Map as M
+import Data.Text (pack)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax as TH
 import qualified Streamly.Data.Stream as S
 import Streamly.Data.Stream.Prelude as StreamlyPrelude
 import qualified Streamly.Data.Fold as Fold
 import Streamly.External.ByteString as StreamlyByteString
-import Streamly.FileSystem.Handle as StreamlyFile (chunkReader)
+import Streamly.FileSystem.Handle as StreamlyFile (chunkReaderWith)
 import Streamly.Internal.Data.Stream.Concurrent.Channel (defaultConfig)
 import Streamly.Internal.Data.Stream.MkType (MonadThrow)
+import Streamly.Internal.System.IO (arrayPayloadSize)
 import System.Directory (doesDirectoryExist,doesFileExist,getDirectoryContents)
 import System.IO (openFile,IOMode(ReadMode))
 import WaiAppStatic.Storage.Filesystem (ETagLookup)
@@ -76,35 +82,39 @@ import Yesod.Static
 -- | A replacement of
 -- [mkStaticFiles](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#mkStaticFiles).
 mkStaticFilesStreamly :: FilePath
+                      -> Int 
                       -> Q [Dec]
-mkStaticFilesStreamly fp = mkStaticFilesStreamly' fp True
+mkStaticFilesStreamly fp size = mkStaticFilesStreamly' fp True size
 
 -- | A replacement of
 -- [mkStaticFiles'](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#mkStaticFiles').
 mkStaticFilesStreamly' :: FilePath -- ^ static directory
                        -> Bool     -- ^ append checksum query parameter
+                       -> Int      -- ^ buffer size
                        -> Q [Dec]
-mkStaticFilesStreamly' fp makeHash = do
+mkStaticFilesStreamly' fp makeHash size = do
   fs <- qRunIO $ getFileListPiecesStreamly fp
-  mkStaticFilesListStreamly fp fs makeHash
+  mkStaticFilesListStreamly fp fs makeHash size
 
 -- | A replacement of
 -- [mkStaticFilesList](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#mkStaticFilesList).
-mkStaticFilesListStreamly :: FilePath -- ^ static directory
+mkStaticFilesListStreamly :: FilePath   -- ^ static directory
                           -> [[String]] -- ^ list of files to create identifiers for
-                          -> Bool     -- ^ append checksum query parameter
+                          -> Bool       -- ^ append checksum query parameter
+                          -> Int        -- ^ buffer size
                           -> Q [Dec]
-mkStaticFilesListStreamly fp fs makeHash = mkStaticFilesListStreamly' fp (zip fs fs) makeHash
+mkStaticFilesListStreamly fp fs makeHash size = mkStaticFilesListStreamly' fp (zip fs fs) makeHash size
 
 -- | A replacement of
 -- [mkStaticFilesList'](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#mkStaticFilesList').
-mkStaticFilesListStreamly' :: FilePath -- ^ static directory
+mkStaticFilesListStreamly' :: FilePath               -- ^ static directory
                            -> [([String], [String])] -- ^ list of files to create identifiers for, where
                                                      -- the first argument of the tuple is the identifier
                                                      -- alias and the second is the actual file name
-                           -> Bool     -- ^ append checksum query parameter
+                           -> Bool                   -- ^ append checksum query parameter
+                           -> Int                    -- ^ buffer size
                            -> Q [Dec]
-mkStaticFilesListStreamly' fp fs makeHash = do
+mkStaticFilesListStreamly' fp fs makeHash size = do
   concat `fmap` Control.Monad.State.Lazy.mapM mkRoute fs
     where
       replace' c
@@ -123,7 +133,8 @@ mkStaticFilesListStreamly' fp fs makeHash = do
                           | otherwise -> '_' : name'
           f' <- [|map pack $(TH.lift f)|]
           qs <- if makeHash
-                      then do hash <- qRunIO $ base64md5FileStreamly $ pathFromRawPiecesStreamly fp f
+                      then do hash <- qRunIO $ base64md5FileStreamly (pathFromRawPiecesStreamly fp f)
+                                                                     size
                               [|[(pack "etag", pack $(TH.lift hash))]|]
                       else return $ ListE []
           return
@@ -136,16 +147,19 @@ mkStaticFilesListStreamly' fp fs makeHash = do
 -- | A replacement of
 -- [cachedETagLookup](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#cachedETagLookup).
 cachedETagLookupStreamly :: FilePath
+                         -> Int
                          -> IO ETagLookup
-cachedETagLookupStreamly dir = do
+cachedETagLookupStreamly dir size = do
   etags <- mkHashMapStreamly dir
+                             size
   return $ (\f -> return $ M.lookup f etags)
 
 -- | A replacement of
 -- [mkHashMap](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#mkHashMap).
 mkHashMapStreamly :: FilePath
+                  -> Int
                   -> IO (M.Map FilePath S8.ByteString)
-mkHashMapStreamly dir = do
+mkHashMapStreamly dir size = do
   fs <- getFileListPiecesStreamly dir
   hashAlist fs >>= return . M.fromList
     where
@@ -157,6 +171,7 @@ mkHashMapStreamly dir = do
                      -> IO (FilePath,S8.ByteString)
             hashPair pieces = do let file = pathFromRawPiecesStreamly dir pieces
                                  h <- base64md5FileStreamly file
+                                                            size
                                  return (file, S8.pack h)
 
 -- | A replacement of
@@ -216,8 +231,9 @@ pathFromRawPiecesStreamly =
 -- | A replacement of
 -- [base64md5File](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#base64md5File).
 base64md5FileStreamly :: FilePath
+                      -> Int
                       -> IO String
-base64md5FileStreamly = fmap (base64Streamly . encode) . hashFileStreamly
+base64md5FileStreamly fp size = fmap (base64Streamly . encode) $ (hashFileStreamly fp size)
     where encode d = ByteArray.convert (d :: Crypto.Hash.Digest MD5)
 
 -- | A replacement of
@@ -242,19 +258,17 @@ hashFileStreamly :: ( MonadBaseControl IO m
                     ,Crypto.Hash.IO.HashAlgorithm hash
                     )
                  => FilePath
+                 -> Int
                  -> m (Crypto.Hash.Digest hash)
-hashFileStreamly fp = do
+hashFileStreamly fp size = do
   shandle <- liftIO $ openFile fp ReadMode
-  let lazyfile  = S.unfold StreamlyFile.chunkReader shandle
-  let parconfig = do let parconfigmaxthreads              = maxThreads (-1) defaultConfig
-                     let parconfigmaxbufferandmaxthreads  = maxBuffer  (-1) parconfigmaxthreads
-                     eager True parconfigmaxbufferandmaxthreads
+  let lazyfile  = S.unfold StreamlyFile.chunkReaderWith (arrayPayloadSize (size * 1024),shandle)
+  let parconfig = maxBuffer (-1) defaultConfig
   let lazyfilef = StreamlyPrelude.parEval (const . id $ parconfig)
                                           (fmap StreamlyByteString.fromArray lazyfile)
   lazyfileff <- S.fold (Fold.foldl' (<>) mempty) lazyfilef
   sinkHashStreamly lazyfileff
   
-
 -- | A more performant replacement of
 -- [sinkHash](https://hackage.haskell.org/package/cryptohash-conduit-0.1.1/docs/src/Crypto-Hash-Conduit.html#sinkHash)
 -- found in [Crypto.Hash.Conduit](https://hackage.haskell.org/package/cryptohash-conduit-0.1.1/docs/Crypto-Hash-Conduit.html).

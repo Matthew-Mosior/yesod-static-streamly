@@ -30,15 +30,19 @@ import Yesod.Static
 -- | A more performant replacement of
 -- [static](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html#v:static)
 -- found in [Yesod.Static](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html).
-staticStreamly :: FilePath
+staticStreamly :: FilePath -- ^ file path of static directory
+               -> Int      -- ^ buffer size (0.25 - 0.50 x your L2 cache seems to be best.)
                -> IO Static
-staticStreamly dir = do
+staticStreamly dir size = do
   hashLookup <- cachedETagLookupStreamly dir
+                                         size
   return $ Static $ webAppSettingsWithLookup dir hashLookup
 
 -- | A more performant replacement of
 -- [staticFiles](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#staticFiles)
 -- found in [Yesod.Static](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html).
-staticFilesStreamly :: FilePath
+staticFilesStreamly :: FilePath -- ^ file path of static directory
+                    -> Int      -- ^ buffer size (0.25 - 0.50 x your L2 cache seems to be best.)
                     -> Q [Dec]
-staticFilesStreamly dir = mkStaticFilesStreamly dir
+staticFilesStreamly dir size = mkStaticFilesStreamly dir
+                                                     size

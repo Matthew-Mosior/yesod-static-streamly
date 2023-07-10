@@ -20,7 +20,7 @@ name:               yesod-static-streamly
 -- PVP summary:     +-+------- breaking API changes
 --                  | | +----- non-breaking API additions
 --                  | | | +--- code changes with no API change
-version:            0.1.3.5
+version:            0.1.3.6
 
 -- A short (one-line) description of the package.
 synopsis:           A streamly-based library providing performance-focused alternatives for functionality found in yesod-static.

@@ -42,3 +42,7 @@
 
 * Modified hashFileStreamly to set unlimited buffer (threading and scheduling have no effect on parEval function).
 * Modified hashFileStreamly to take in buffer size so that users may optimize chunkReaderWith function based on L2 cache.
+
+## 0.1.3.6 -- 2023-07-10
+
+* Complete re-work of hashFileStreamly in order to fix non-constant memory usage.

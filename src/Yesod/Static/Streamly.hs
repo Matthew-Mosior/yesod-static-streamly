@@ -15,6 +15,8 @@
 -- = Streamly-based alternative functionality for Yesod.Static.
 --
 -- This library utilizes [Streamly](https://hackage.haskell.org/package/streamly-core)'s superb performance characteristics to replace some of [Yesod](https://hackage.haskell.org/package/yesod)'s functionality with streamly-based functionality.
+--
+-- If you have large files to cache within your static directory, you may very well need to increase you file descriptor limit in order to utilize 'staticStreamly' and 'staticFilesStreamly' properly.
 
 module Yesod.Static.Streamly ( -- * Yesod.Static Replacement functions
                                staticStreamly,

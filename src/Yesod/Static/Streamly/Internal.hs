@@ -52,12 +52,12 @@ module Yesod.Static.Streamly.Internal ( -- * Yesod.Static Replacement functions
                                         sinkHashStreamly
                                       ) where
 
-import Control.Monad.Trans.Control (MonadBaseControl)
-import Control.Monad.State.Lazy
-import "cryptonite" Crypto.Hash (hash,Digest,MD5)
+import Control.Monad.State.Strict
+import "cryptonite" Crypto.Hash (hashlazy,Digest,MD5)
 import "cryptonite" Crypto.Hash.IO (HashAlgorithm)
 import qualified Data.ByteArray as ByteArray
 import Data.ByteString as B (ByteString)
+import Data.ByteString.Lazy as L (ByteString)
 import qualified Data.ByteString.Base64
 import qualified Data.ByteString.Char8 as S8
 import Data.Char (isLower,isDigit)
@@ -67,15 +67,10 @@ import Data.Text (pack)
 import Language.Haskell.TH
 import Language.Haskell.TH.Syntax as TH
 import qualified Streamly.Data.Stream as S
-import Streamly.Data.Stream.Prelude as StreamlyPrelude
-import qualified Streamly.Data.Fold as Fold
-import Streamly.External.ByteString as StreamlyByteString
-import Streamly.FileSystem.Handle as StreamlyFile (chunkReaderWith)
-import Streamly.Internal.Data.Stream.Concurrent.Channel (defaultConfig)
-import Streamly.Internal.Data.Stream.MkType (MonadThrow)
+import Streamly.External.ByteString.Lazy as StreamlyLByteString (fromChunksIO)
+import Streamly.Internal.FileSystem.File as StreamlyInternalFile (chunkReaderWith)
 import Streamly.Internal.System.IO (arrayPayloadSize)
 import System.Directory (doesDirectoryExist,doesFileExist,getDirectoryContents)
-import System.IO (openFile,IOMode(ReadMode))
 import WaiAppStatic.Storage.Filesystem (ETagLookup)
 import Yesod.Static
 
@@ -114,35 +109,34 @@ mkStaticFilesListStreamly' :: FilePath               -- ^ static directory
                            -> Bool                   -- ^ append checksum query parameter
                            -> Int                    -- ^ buffer size
                            -> Q [Dec]
-mkStaticFilesListStreamly' fp fs makeHash size = do
-  concat `fmap` Control.Monad.State.Lazy.mapM mkRoute fs
+mkStaticFilesListStreamly' fp fs makeHash size =
+  concat `fmap` mapM mkRoute fs
     where
       replace' c
           | 'A' <= c && c <= 'Z' = c
           | 'a' <= c && c <= 'z' = c
           | '0' <= c && c <= '9' = c
           | otherwise = '_'
-      mkRoute (alias,f) = do
-          let name' = Data.List.intercalate "_" $ map (map replace') alias
-              routeName = mkName $
-                  case () of
-                      ()
-                          | null name' -> error "null-named file"
-                          | isDigit (head name') -> '_' : name'
-                          | isLower (head name') -> name'
-                          | otherwise -> '_' : name'
-          f' <- [|map pack $(TH.lift f)|]
-          qs <- if makeHash
-                      then do hash <- qRunIO $ base64md5FileStreamly (pathFromRawPiecesStreamly fp f)
-                                                                     size
-                              [|[(pack "etag", pack $(TH.lift hash))]|]
-                      else return $ ListE []
-          return
-              [ SigD routeName $ ConT ''StaticRoute
-              , FunD routeName
-                  [ Clause [] (NormalB $ (ConE 'StaticRoute) `AppE` f' `AppE` qs) []
-                  ]
-              ]
+      mkRoute (alias,f) = do let name' = Data.List.intercalate "_" $ map (map replace') alias
+                                 routeName = mkName $
+                                     case () of
+                                         ()
+                                             | Prelude.null name' -> error "null-named file"
+                                             | isDigit (head name') -> '_' : name'
+                                             | isLower (head name') -> name'
+                                             | otherwise -> '_' : name'
+                             f' <- [|map pack $(TH.lift f)|]
+                             qs <- if makeHash
+                                     then do hash <- qRunIO $ base64md5FileStreamly (pathFromRawPiecesStreamly fp f)
+                                                                                    size
+                                             [|[(pack "etag",pack $(TH.lift hash))]|]
+                                     else return $ ListE []
+                             return
+                                 [ SigD routeName $ ConT ''StaticRoute
+                                 , FunD routeName
+                                     [ Clause [] (NormalB $ (ConE 'StaticRoute) `AppE` f' `AppE` qs) []
+                                     ]
+                                 ]
 
 -- | A replacement of
 -- [cachedETagLookup](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#cachedETagLookup).
@@ -165,14 +159,14 @@ mkHashMapStreamly dir size = do
     where
       hashAlist :: [[String]]
                 -> IO [(FilePath,S8.ByteString)]
-      hashAlist fs = Control.Monad.State.Lazy.mapM hashPair fs
+      hashAlist fs = mapM hashPair fs
           where
             hashPair :: [String]
                      -> IO (FilePath,S8.ByteString)
             hashPair pieces = do let file = pathFromRawPiecesStreamly dir pieces
                                  h <- base64md5FileStreamly file
                                                             size
-                                 return (file, S8.pack h)
+                                 return (file,S8.pack h)
 
 -- | A replacement of
 -- [notHidden](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#notHidden).
@@ -197,17 +191,17 @@ getFileListPiecesStreamly = flip evalStateT M.empty . flip go id
       allContents <- liftIO $ (sort . Prelude.filter notHiddenStreamly) `fmap` getDirectoryContents fp
       let fullPath :: String -> String
           fullPath f = fp ++ '/' : f
-      files <- liftIO $ Control.Monad.State.Lazy.filterM (doesFileExist . fullPath) allContents
+      files <- liftIO $ filterM (doesFileExist . fullPath) allContents
       let files' = map (front . return) files
-      files'' <- Control.Monad.State.Lazy.mapM dedupe files'
-      dirs <- liftIO $ Control.Monad.State.Lazy.filterM (doesDirectoryExist . fullPath) allContents
-      dirs' <- Control.Monad.State.Lazy.mapM (\f -> go (fullPath f) (front . (:) f)) dirs
+      files'' <- mapM dedupe files'
+      dirs <- liftIO $ filterM (doesDirectoryExist . fullPath) allContents
+      dirs' <- mapM (\f -> go (fullPath f) (front . (:) f)) dirs
       return $ concat $ files'' : dirs'
     
     -- Reuse data buffers for identical strings
     dedupe :: [String]
            -> StateT (M.Map String String) IO [String]
-    dedupe = Control.Monad.State.Lazy.mapM dedupe'
+    dedupe = mapM dedupe'
 
     dedupe' :: String
             -> StateT (M.Map String String) IO String
@@ -252,22 +246,16 @@ base64Streamly = map tr
 -- | A more performant replacement of
 -- [hashFile](https://hackage.haskell.org/package/cryptohash-conduit-0.1.1/docs/src/Crypto-Hash-Conduit.html#hashFile)
 -- found in [Crypto.Hash.Conduit](https://hackage.haskell.org/package/cryptohash-conduit-0.1.1/docs/Crypto-Hash-Conduit.html).
-hashFileStreamly :: ( MonadBaseControl IO m
-                    , MonadThrow m
-                    , MonadIO m
-                    ,Crypto.Hash.IO.HashAlgorithm hash
+hashFileStreamly :: ( MonadIO m
+                    , Crypto.Hash.IO.HashAlgorithm hash
                     )
                  => FilePath
                  -> Int
                  -> m (Crypto.Hash.Digest hash)
 hashFileStreamly fp size = do
-  shandle <- liftIO $ openFile fp ReadMode
-  let lazyfile  = S.unfold StreamlyFile.chunkReaderWith (arrayPayloadSize (size * 1024),shandle)
-  let parconfig = maxBuffer (-1) defaultConfig
-  let lazyfilef = StreamlyPrelude.parEval (const . id $ parconfig)
-                                          (fmap StreamlyByteString.fromArray lazyfile)
-  lazyfileff <- S.fold (Fold.foldl' (<>) mempty) lazyfilef
-  sinkHashStreamly lazyfileff
+  let lazyfile = S.unfold StreamlyInternalFile.chunkReaderWith (arrayPayloadSize (size * 1024),fp)
+  lazyfilef <- liftIO $ StreamlyLByteString.fromChunksIO lazyfile
+  sinkHashStreamly lazyfilef
   
 -- | A more performant replacement of
 -- [sinkHash](https://hackage.haskell.org/package/cryptohash-conduit-0.1.1/docs/src/Crypto-Hash-Conduit.html#sinkHash)
@@ -275,6 +263,6 @@ hashFileStreamly fp size = do
 sinkHashStreamly :: ( Monad m
                     , Crypto.Hash.IO.HashAlgorithm hash
                     )
-                 => B.ByteString
+                 => L.ByteString
                  -> m (Crypto.Hash.Digest hash)
-sinkHashStreamly bscontent = return $ hash bscontent
+sinkHashStreamly blcontent = return $ hashlazy blcontent

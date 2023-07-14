@@ -46,3 +46,12 @@
 ## 0.1.3.6 -- 2023-07-10
 
 * Complete re-work of hashFileStreamly in order to fix non-constant memory usage.
+
+## 0.1.4.0 -- 2023-07-14
+
+* Added staticDevelStreamly, staticFilesListStreamly, staticFilesMapStreamly, staticFilesMergeMapStreamly, and publicFilesStreamly replacement functions in Yesod.Static.Streamly.
+* Added supporting functionality for staticDevelStreamly, cachedETagLookupDevelStreamly, in Yesod.Static.Streamly.Internal.
+
+## 0.1.4.1 -- 2023-07-14
+
+* Updated documentation in Yesod.Static.Streamly.

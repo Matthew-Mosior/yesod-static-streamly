@@ -36,11 +36,12 @@
 --
 -- This library utilizes [Streamly](https://hackage.haskell.org/package/streamly-core)'s superb performance characteristics to replace some of [Yesod](https://hackage.haskell.org/package/yesod)'s functionality with streamly-based functionality.
 
-module Yesod.Static.Streamly.Internal ( -- * Yesod.Static Replacement functions
+module Yesod.Static.Streamly.Internal ( -- * Yesod.Static Replacement functions (INTERNAL)
                                         mkStaticFilesStreamly,
                                         mkStaticFilesStreamly',
                                         mkStaticFilesListStreamly,
                                         mkStaticFilesListStreamly',
+                                        cachedETagLookupDevelStreamly,
                                         cachedETagLookupStreamly,
                                         mkHashMapStreamly,
                                         notHiddenStreamly,
@@ -61,6 +62,7 @@ import Data.ByteString.Lazy as L (ByteString)
 import qualified Data.ByteString.Base64
 import qualified Data.ByteString.Char8 as S8
 import Data.Char (isLower,isDigit)
+import Data.IORef (readIORef,newIORef,writeIORef)
 import Data.List (foldl',intercalate,sort)
 import qualified Data.Map as M
 import Data.Text (pack)
@@ -71,6 +73,8 @@ import Streamly.External.ByteString.Lazy as StreamlyLByteString (fromChunksIO)
 import Streamly.Internal.FileSystem.File as StreamlyInternalFile (chunkReaderWith)
 import Streamly.Internal.System.IO (arrayPayloadSize)
 import System.Directory (doesDirectoryExist,doesFileExist,getDirectoryContents)
+import System.PosixCompat.Files (getFileStatus,modificationTime)
+import System.Posix.Types (EpochTime)
 import WaiAppStatic.Storage.Filesystem (ETagLookup)
 import Yesod.Static
 
@@ -137,6 +141,27 @@ mkStaticFilesListStreamly' fp fs makeHash size =
                                      [ Clause [] (NormalB $ (ConE 'StaticRoute) `AppE` f' `AppE` qs) []
                                      ]
                                  ]
+
+-- | A replacement of
+-- [cachedETagLookupDevel](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#cachedETagLookupDevel).
+cachedETagLookupDevelStreamly :: FilePath
+                              -> Int
+                              -> IO ETagLookup
+cachedETagLookupDevelStreamly dir size = do
+  etags <- mkHashMapStreamly dir
+                             size
+  mtimeVar <- newIORef (M.empty :: M.Map FilePath EpochTime)
+  return $ \f ->
+    case M.lookup f etags of
+      Nothing       -> return Nothing
+      Just checksum -> do
+        fs <- getFileStatus f
+        let newt = modificationTime fs
+        mtimes <- readIORef mtimeVar
+        oldt <- case M.lookup f mtimes of
+          Nothing -> writeIORef mtimeVar (M.insert f newt mtimes) >> return newt
+          Just oldt -> return oldt
+        return $ if newt /= oldt then Nothing else Just checksum
 
 -- | A replacement of
 -- [cachedETagLookup](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#cachedETagLookup).

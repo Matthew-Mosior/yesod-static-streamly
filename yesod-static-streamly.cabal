@@ -20,7 +20,7 @@ name:               yesod-static-streamly
 -- PVP summary:     +-+------- breaking API changes
 --                  | | +----- non-breaking API additions
 --                  | | | +--- code changes with no API change
-version:            0.1.4.1
+version:            0.1.4.2
 
 -- A short (one-line) description of the package.
 synopsis:           A streamly-based library providing performance-focused alternatives for functionality found in yesod-static.
@@ -84,7 +84,7 @@ library
                       containers >= 0.6.7 && < 0.7, 
                       cryptonite >= 0.30 && < 0.31,
                       directory >= 1.3.7 && < 1.4,
-                      filepath,
+                      filepath >= 1.4.2 && < 1.5,
                       memory >= 0.18.0 && < 0.19,
                       monad-control >= 1.0.3 && < 1.1,
                       mtl >= 2.2.2 && < 2.3,
@@ -93,7 +93,7 @@ library
                       streamly-core >= 0.1.0 && < 0.2,
                       template-haskell >= 2.19.0 && < 2.20,
                       text >= 2.0.2 && < 2.1,
-                      unix-compat,
+                      unix-compat >= 0.7 && < 0.8,
                       wai-app-static >= 3.1.7 && < 3.2,
                       yesod-core >= 1.6.24 && < 1.7,
                       yesod-static >= 1.6.1 && < 1.7

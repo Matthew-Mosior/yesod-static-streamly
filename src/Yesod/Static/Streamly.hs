@@ -62,7 +62,7 @@ staticDevelStreamly dir size = do
   return $ Static $ webAppSettingsWithLookup dir hashLookup
 
 -- | A more performant replacement of
--- [staticFiles](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#staticFiles)
+-- [staticFiles](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html#v:staticFiles)
 -- found in [Yesod.Static](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html).
 staticFilesStreamly :: FilePath -- ^ file path of static directory
                     -> Int      -- ^ buffer size (0.25 - 0.50 x your L2 cache seems to be best.)
@@ -71,7 +71,7 @@ staticFilesStreamly dir size = mkStaticFilesStreamly dir
                                                      size
 
 -- | A more performant replacement of
--- [staticFilesList](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#staticFilesList)
+-- [staticFilesList](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html#v:staticFilesList)
 -- found in [Yesod.Static](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html).
 staticFilesListStreamly :: FilePath -- ^ file path of static directory
                         -> [FilePath]
@@ -90,7 +90,7 @@ staticFilesListStreamly dir fs size =
                   in a : split (drop 1 b)
 
 -- | A more performant replacement of
--- [staticFilesMap](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#staticFilesMap)
+-- [staticFilesMap](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html#v:staticFilesMap)
 -- found in [Yesod.Static](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html).
 staticFilesMapStreamly :: FilePath -- ^ file path of static directory
                        -> M.Map FilePath FilePath 
@@ -111,7 +111,7 @@ staticFilesMapStreamly fp m size =
                   in a : split (drop 1 b)
 
 -- | A more performant replacement of
--- [staticFilesMergeMap](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#staticFilesMergeMap)
+-- [staticFilesMergeMap](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html#v:staticFilesMergeMap)
 -- found in [Yesod.Static](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html).
 staticFilesMergeMapStreamly :: FilePath -- ^ file path of static directory
                             -> M.Map FilePath FilePath
@@ -148,7 +148,7 @@ staticFilesMergeMapStreamly fp m size = do
                                    else M.insert p p st
 
 -- | A more performant replacement of
--- [publicFiles](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#publicFiles)
+-- [publicFiles](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html#v:publicFiles)
 -- found in [Yesod.Static](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html).
 publicFilesStreamly :: FilePath -- ^ file path of static directory
                     -> Int      -- ^ buffer size (0.25 - 0.50 x your L2 cache seems to be best.)

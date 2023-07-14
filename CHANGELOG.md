@@ -59,3 +59,15 @@
 ## 0.1.4.2 -- 2023-07-14
 
 * Updated bounds for filepath and unix-compat dependencies.
+
+## 0.1.4.3 -- 2023-07-14
+
+* Updated documentation for Yesod.Static.Streamly.
+
+## 0.1.4.4 -- 2023-07-14
+
+* Fixing documentation for Yesod.Static.Streamly.
+
+## 0.1.4.5 -- 2023-07-14
+
+* Fixing documentation for Yesod.Static.Streamly.

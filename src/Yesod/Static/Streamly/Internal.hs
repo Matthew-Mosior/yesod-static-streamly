@@ -345,7 +345,7 @@ liftRoutesStreamly =
       liftPairs = fmap ListE . mapM liftPair
       liftPair (x, y) = [|($(liftT x), $(liftT y))|]
 
--- | A replacement of
+-- | A more performant replacement of
 -- [combineStatics'](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/src/Yesod.Static.html#combineStatics').
 combineStaticsStreamly' :: CombineTypeStreamly
                         -> CombineSettingsStreamly

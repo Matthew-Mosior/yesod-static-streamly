@@ -76,3 +76,7 @@
 
 * Added combineStylesheetsStreamly' and combineScriptsStreamly' replacement functions in Yesod.Static.Streamly.
 * Added CombineTypeStreamly(..), CombineSettingsStreamly(..), liftRoutesStreamly, combineStaticsStreamly' and base64md5Streamly in Yesod.Static.Streamly.Internal.
+
+## 0.1.5.2 -- 2023-07-17
+
+* Updated documentation for Yesod.Static.Streamly.Internal.

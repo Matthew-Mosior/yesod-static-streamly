@@ -21,6 +21,9 @@
 module Yesod.Static.Streamly ( -- * Yesod.Static Replacement functions - Smart constructor
                                staticStreamly,
                                staticDevelStreamly,
+                               -- * Yesod.Static Replacement functions - Combining CSS/JS
+                               combineStylesheetsStreamly',
+                               combineScriptsStreamly',
                                -- * Yesod.Static Replacement functions - Template Haskell helpers
                                staticFilesStreamly,
                                staticFilesListStreamly,
@@ -60,6 +63,33 @@ staticDevelStreamly dir size = do
   hashLookup <- cachedETagLookupDevelStreamly dir
                                               size
   return $ Static $ webAppSettingsWithLookup dir hashLookup
+
+-- | A more performant replacement of
+-- [combineStylesheets'](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html#v:combineStylesheets-39-)
+-- found in [Yesod.Static](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html).
+combineStylesheetsStreamly' :: Bool           -- ^ development? if so, perform no combining
+                            -> CombineSettingsStreamly
+                            -> Name           -- ^ Static route constructor name, e.g. \'StaticR
+                            -> [Route Static] -- ^ files to combine
+                            -> Int            -- ^ buffer size (0.25 - 0.50 x your L2 cache seems to be best.)
+                            -> Q Exp
+combineStylesheetsStreamly' development cs con routes size
+    | development = [| mapM_ (addStylesheet . $(return $ ConE con)) $(liftRoutesStreamly routes) |]
+    | otherwise = [| addStylesheet $ $(return $ ConE con) $(combineStaticsStreamly' CSS cs routes size) |]
+
+-- | A more performant replacement of
+-- [combineScripts'](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html#v:combineScripts-39-)
+-- found in [Yesod.Static](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html).
+combineScriptsStreamly' :: Bool           -- ^ development? if so, perform no combining
+                        -> CombineSettingsStreamly
+                        -> Name           -- ^ Static route constructor name, e.g. \'StaticR
+                        -> [Route Static] -- ^ files to combine
+                        -> Int            -- ^ buffer size (0.25 - 0.50 x your L2 cache seems to be best.)
+                        -> Q Exp
+combineScriptsStreamly' development cs con routes size
+    | development = [| mapM_ (addScript . $(return $ ConE con)) $(liftRoutesStreamly routes) |]
+    | otherwise = [| addScript $ $(return $ ConE con) $(combineStaticsStreamly' JS cs routes size) |]
+
 
 -- | A more performant replacement of
 -- [staticFiles](https://hackage.haskell.org/package/yesod-static-1.6.1.0/docs/Yesod-Static.html#v:staticFiles)

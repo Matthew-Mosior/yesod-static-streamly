@@ -71,3 +71,8 @@
 ## 0.1.4.5 -- 2023-07-14
 
 * Fixing documentation for Yesod.Static.Streamly.
+
+## 0.1.5.1 -- 2023-07-17
+
+* Added combineStylesheetsStreamly' and combineScriptsStreamly' replacement functions in Yesod.Static.Streamly.
+* Added CombineTypeStreamly(..), CombineSettingsStreamly(..), liftRoutesStreamly, combineStaticsStreamly' and base64md5Streamly in Yesod.Static.Streamly.Internal.

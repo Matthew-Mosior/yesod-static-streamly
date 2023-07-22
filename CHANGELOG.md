@@ -80,3 +80,7 @@
 ## 0.1.5.2 -- 2023-07-17
 
 * Updated documentation for Yesod.Static.Streamly.Internal.
+
+## 0.1.5.3 -- 2023-07-22
+
+* Added initial test suite.
